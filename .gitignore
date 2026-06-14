@@ -1,0 +1,38 @@
+# Entornos virtuales
+venv/
+env/
+.venv/
+.env
+
+# Archivos de caché y logs de Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+.pytest_cache/
+
+# Basura temporal de OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Multimedia / Archivos de ejemplo y temporales
+*.mp3
+*.mp4
+*.mkv
+*.avi
+*.wav
+*.flac
+*.ogg
+*.srt
+*.vtt
+
+# Archivos temporales generados por tempfile y la app
+transcripcion_diarizada.txt
+transcripcion_diarizada.srt
+temp/
+tmp/
+
+# Archivos de proyecto
+.vscode/
+.idea/
