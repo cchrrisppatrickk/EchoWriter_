@@ -5,6 +5,10 @@ import torch
 import gradio as gr
 import whisperx
 from whisperx.diarize import DiarizationPipeline
+from dotenv import load_dotenv, set_key
+
+env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+load_dotenv(env_path)
 
 def format_timestamp(seconds: float) -> str:
     """Convierte segundos a formato de tiempo SRT: HH:MM:SS,mmm"""
@@ -22,7 +26,19 @@ def transcribe_and_diarize(file_path, hf_token, whisper_model, min_speakers, max
         return "Error: Por favor, carga un archivo de audio o video.", None, None
     if not hf_token or not hf_token.strip():
         return "Error: El token de Hugging Face es obligatorio para descargar los modelos de Diarización (Pyannote).", None, None
-    
+        
+    # Auto-guardado del token en .env para la próxima vez
+    current_token = os.getenv("HF_TOKEN", "")
+    if hf_token.strip() != current_token:
+        try:
+            if not os.path.exists(env_path):
+                open(env_path, 'w').close()
+            set_key(env_path, "HF_TOKEN", hf_token.strip())
+            os.environ["HF_TOKEN"] = hf_token.strip()
+            print("[INFO] Token de Hugging Face guardado localmente en .env.")
+        except Exception as e:
+            print(f"[WARNING] No se pudo guardar el token en .env: {e}")
+            
     device = "cuda" if torch.cuda.is_available() else "cpu"
     if device == "cpu":
         return "Error: No se detectó una GPU compatible con CUDA. Esta aplicación requiere aceleración por GPU (NVIDIA) para funcionar.", None, None
@@ -262,6 +278,7 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue="indigo", secondary_hue="slat
                     label="Token de Hugging Face (pyannote)",
                     placeholder="hf_...",
                     type="password",
+                    value=os.getenv("HF_TOKEN", ""),
                     info="Requerido para la diarización. Asegúrate de haber aceptado la licencia de Pyannote 3.1 en Hugging Face."
                 )
                 

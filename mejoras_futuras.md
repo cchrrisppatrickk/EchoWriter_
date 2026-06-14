@@ -4,7 +4,7 @@
 
 ## 🌟 1. Mejoras de la Interfaz de Usuario (UI) y Experiencia
 
-- [ ] **Guardar el Token de Hugging Face automáticamente**: Modificar `app.py` para leer un archivo `.env` invisible que guarde el token.
+- [x] **Guardar el Token de Hugging Face automáticamente**: Modificar `app.py` para leer un archivo `.env` invisible que guarde el token.
 - [ ] **Procesamiento por Lotes (Batch Processing):** Permitir subir múltiples audios/videos a la vez, procesarlos secuencialmente y generar un ZIP final.
 - [ ] **Reproductor de Audio/Video Integrado:** Mostrar el archivo multimedia subido junto a la caja de transcripción.
 - [ ] **Colores para Hablantes:** Usar HTML/Markdown enriquecido en la caja de salida para darle colores distintos a cada "SPEAKER_XX".
