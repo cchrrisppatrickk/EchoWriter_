@@ -17,7 +17,7 @@
 
 ## 🛠️ 3. Nuevas Funcionalidades del Motor
 
-- [ ] **Traducción Automática Integrada:** Habilitar el task de traducción ("translate") de Whisper para que transcripciones en otros idiomas salgan automáticamente en inglés.
+- [x] **Traducción Automática Integrada:** Habilitar el task de traducción ("translate") de Whisper para que transcripciones en otros idiomas salgan automáticamente en inglés.
 - [ ] **Nuevos Formatos de Exportación:** Añadir descargas en formato `.vtt`, `.docx` o `PDF` con formato pulcro y distinguido por colores.
 - [ ] **Ajustes Avanzados de Silencio (VAD):** Exponer en la UI los controles de sensibilidad de Silero VAD para evitar que corte audio durante ruidos fuertes.
 - [ ] **Edición en Caliente:** Permitir editar la transcripción final en la interfaz web de Gradio antes de descargar el archivo.

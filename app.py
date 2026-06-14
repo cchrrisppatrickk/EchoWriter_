@@ -6,6 +6,8 @@ import gradio as gr
 import whisperx
 from whisperx.diarize import DiarizationPipeline
 from dotenv import load_dotenv, set_key
+import argostranslate.package
+import argostranslate.translate
 
 env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
 load_dotenv(env_path)
@@ -20,7 +22,7 @@ def format_timestamp(seconds: float) -> str:
     milliseconds = min(999, max(0, milliseconds))
     return f"{hours:02d}:{minutes:02d}:{secs:02d},{milliseconds:03d}"
 
-def transcribe_and_diarize(file_path, hf_token, whisper_model, min_speakers, max_speakers, progress=gr.Progress(track_tqdm=True)):
+def transcribe_and_diarize(file_path, hf_token, whisper_model, min_speakers, max_speakers, traducir_a_es, progress=gr.Progress(track_tqdm=True)):
     # Validaciones iniciales
     if not file_path:
         return "Error: Por favor, carga un archivo de audio o video.", None, None
@@ -119,7 +121,44 @@ def transcribe_and_diarize(file_path, hf_token, whisper_model, min_speakers, max
         print("[PROCESS] Asignando hablantes a palabras...")
         final_result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
         
+        # --- PASO 4.5: Traducción (Opcional) ---
+        if traducir_a_es and detected_language != "es":
+            progress(0.96, desc="Inicializando motor de Traducción (Argos)...")
+            print("[PROCESS] Preparando traducción a Español...")
+            try:
+                argostranslate.package.update_package_index()
+                available_packages = argostranslate.package.get_available_packages()
+                
+                # Buscar el paquete adecuado (Origen -> Español)
+                package_to_install = next(
+                    filter(
+                        lambda x: x.from_code == detected_language and x.to_code == "es", available_packages
+                    ), None
+                )
+                
+                if package_to_install is not None:
+                    progress(0.97, desc=f"Descargando paquete de idioma ({detected_language} -> es) si es necesario...")
+                    package_to_install.download()
+                    package_to_install.install()
+                    
+                    installed_languages = argostranslate.translate.get_installed_languages()
+                    from_lang = list(filter(lambda x: x.code == detected_language, installed_languages))[0]
+                    to_lang = list(filter(lambda x: x.code == "es", installed_languages))[0]
+                    translation_obj = from_lang.get_translation(to_lang)
+                    
+                    progress(0.98, desc="Traduciendo transcripción al Español...")
+                    print("[PROCESS] Traducción en progreso...")
+                    for segment in final_result["segments"]:
+                        original_text = segment.get("text", "").strip()
+                        if original_text:
+                            segment["text"] = translation_obj.translate(original_text)
+                else:
+                    print(f"[WARNING] No se encontró paquete de traducción directo de '{detected_language}' a 'es'.")
+            except Exception as tr_e:
+                print(f"[ERROR] Falló la traducción: {tr_e}")
+
         # --- PASO 5: Generar y formatear salidas ---
+        progress(0.99, desc="Formateando subtítulos finales...")
         text_lines = []
         srt_lines = []
         srt_counter = 1
@@ -302,6 +341,12 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue="indigo", secondary_hue="slat
                         minimum=0,
                         value=0
                     )
+                    
+                traducir_es_input = gr.Checkbox(
+                    label="Traducir transcripción al Español (Offline)",
+                    value=False,
+                    info="Si el audio está en otro idioma, la IA lo traducirá automáticamente al español al finalizar."
+                )
                 
                 submit_btn = gr.Button("Comenzar Transcripción", elem_classes="action-btn")
             
@@ -335,7 +380,8 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue="indigo", secondary_hue="slat
             hf_token_input,
             whisper_model_input,
             min_speakers_input,
-            max_speakers_input
+            max_speakers_input,
+            traducir_es_input
         ],
         outputs=[
             output_textbox,
