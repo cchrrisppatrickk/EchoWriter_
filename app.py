@@ -25,9 +25,9 @@ def format_timestamp(seconds: float) -> str:
 def transcribe_and_diarize(file_path, hf_token, whisper_model, source_language_ui, min_speakers, max_speakers, traducir_a_es, progress=gr.Progress(track_tqdm=True)):
     # Validaciones iniciales
     if not file_path:
-        return "Error: Por favor, carga un archivo de audio o video.", None, None, gr.update()
+        return "Error: Por favor, carga un archivo de audio o video.", None, None, gr.update(), None
     if not hf_token or not hf_token.strip():
-        return "Error: El token de Hugging Face es obligatorio para descargar los modelos de Diarización (Pyannote).", None, None, gr.update()
+        return "Error: El token de Hugging Face es obligatorio para descargar los modelos de Diarización (Pyannote).", None, None, gr.update(), None
         
     # Auto-guardado del token en .env para la próxima vez
     current_token = os.getenv("HF_TOKEN", "")
@@ -43,7 +43,7 @@ def transcribe_and_diarize(file_path, hf_token, whisper_model, source_language_u
             
     device = "cuda" if torch.cuda.is_available() else "cpu"
     if device == "cpu":
-        return "Error: No se detectó una GPU compatible con CUDA. Esta aplicación requiere aceleración por GPU (NVIDIA) para funcionar.", None, None, gr.update()
+        return "Error: No se detectó una GPU compatible con CUDA. Esta aplicación requiere aceleración por GPU (NVIDIA) para funcionar.", None, None, gr.update(), None
         
     compute_type = "int8"  # int8 evita errores de kernel ('no kernel image') en GPUs más antiguas y optimiza la VRAM.
     batch_size = 4
@@ -209,7 +209,7 @@ def transcribe_and_diarize(file_path, hf_token, whisper_model, source_language_u
             
         progress(1.0, desc="¡Proceso finalizado!")
         print("[SUCCESS] Proceso de diarización y transcripción completado.")
-        return full_text, temp_txt_path, temp_srt_path, gr.Tabs(selected=2)
+        return full_text, temp_txt_path, temp_srt_path, gr.Tabs(selected=2), file_path
         
     except Exception as e:
         error_msg = f"ERROR EN EL PROCESAMIENTO:\n\n{str(e)}\n\n"
@@ -223,7 +223,7 @@ def transcribe_and_diarize(file_path, hf_token, whisper_model, source_language_u
         except:
             pass
             
-        return error_msg, None, None, gr.update()
+        return error_msg, None, None, gr.update(), None
 
 # --- CSS Personalizado para una Estética Premium Oscura ---
 custom_css = """
@@ -313,14 +313,14 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue="indigo", secondary_hue="slat
     )
     
     with gr.Tabs() as main_tabs:
-        with gr.TabItem("🎬 1. Configuración y Video", id=1):
+        with gr.TabItem("⚙️ 1. Configuración de Entrada", id=1):
             with gr.Column(elem_classes="glass-panel"):
-                gr.Markdown("### 🛠️ Archivo Multimedia y Configuración")
+                gr.Markdown("### 🛠️ Carga de Archivo Multimedia")
                 
-                audio_video_input = gr.Video(
-                    label="Reproductor Integrado (Sube o arrastra tu video/audio aquí)",
-                    sources=["upload"],
-                    interactive=True
+                audio_video_input = gr.File(
+                    label="Subir o arrastrar Archivo (Audio/Video)",
+                    file_types=["audio", "video"],
+                    type="filepath"
                 )
                 
                 with gr.Accordion("⚙️ Parámetros del Motor de IA", open=True):
@@ -369,27 +369,37 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue="indigo", secondary_hue="slat
                     
                 submit_btn = gr.Button("Comenzar Transcripción", elem_classes="action-btn")
         
-        with gr.TabItem("📝 2. Resultados", id=2):
+        with gr.TabItem("🎬 2. Edición y Auditoría", id=2):
             with gr.Column(elem_classes="glass-panel"):
-                gr.Markdown("### 📝 Resultados de la Transcripción y Diarización")
-                
-                output_textbox = gr.Textbox(
-                    label="Transcripción por Segmentos",
-                    placeholder="Los resultados se mostrarán aquí...",
-                    lines=15,
-                    max_lines=30,
-                    show_copy_button=True
-                )
+                gr.Markdown("### 📝 Auditoría de Transcripción (Sincronización)")
                 
                 with gr.Row():
-                    txt_download_btn = gr.File(
-                        label="Descargar Transcripción (.txt)",
-                        interactive=False
-                    )
-                    srt_download_btn = gr.File(
-                        label="Descargar Subtítulos (.srt)",
-                        interactive=False
-                    )
+                    # Columna Izquierda: Reproductor
+                    with gr.Column(scale=1):
+                        playback_video = gr.Video(
+                            label="Reproductor de Auditoría",
+                            interactive=False
+                        )
+                        
+                    # Columna Derecha: Texto
+                    with gr.Column(scale=1):
+                        output_textbox = gr.Textbox(
+                            label="Transcripción Editable por Segmentos",
+                            placeholder="Los resultados se mostrarán aquí. Reproduce el video a la izquierda para corregir errores.",
+                            lines=12,
+                            max_lines=25,
+                            show_copy_button=True
+                        )
+                        
+                        with gr.Row():
+                            txt_download_btn = gr.File(
+                                label="Descargar Transcripción (.txt)",
+                                interactive=False
+                            )
+                            srt_download_btn = gr.File(
+                                label="Descargar Subtítulos (.srt)",
+                                interactive=False
+                            )
 
     # Vinculación de eventos
     submit_btn.click(
@@ -407,7 +417,8 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue="indigo", secondary_hue="slat
             output_textbox,
             txt_download_btn,
             srt_download_btn,
-            main_tabs
+            main_tabs,
+            playback_video
         ]
     )
 
