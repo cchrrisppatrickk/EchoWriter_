@@ -25,9 +25,9 @@ def format_timestamp(seconds: float) -> str:
 def transcribe_and_diarize(file_path, hf_token, whisper_model, source_language_ui, min_speakers, max_speakers, traducir_a_es, progress=gr.Progress(track_tqdm=True)):
     # Validaciones iniciales
     if not file_path:
-        return "Error: Por favor, carga un archivo de audio o video.", None, None
+        return "Error: Por favor, carga un archivo de audio o video.", None, None, gr.update()
     if not hf_token or not hf_token.strip():
-        return "Error: El token de Hugging Face es obligatorio para descargar los modelos de Diarización (Pyannote).", None, None
+        return "Error: El token de Hugging Face es obligatorio para descargar los modelos de Diarización (Pyannote).", None, None, gr.update()
         
     # Auto-guardado del token en .env para la próxima vez
     current_token = os.getenv("HF_TOKEN", "")
@@ -43,7 +43,7 @@ def transcribe_and_diarize(file_path, hf_token, whisper_model, source_language_u
             
     device = "cuda" if torch.cuda.is_available() else "cpu"
     if device == "cpu":
-        return "Error: No se detectó una GPU compatible con CUDA. Esta aplicación requiere aceleración por GPU (NVIDIA) para funcionar.", None, None
+        return "Error: No se detectó una GPU compatible con CUDA. Esta aplicación requiere aceleración por GPU (NVIDIA) para funcionar.", None, None, gr.update()
         
     compute_type = "int8"  # int8 evita errores de kernel ('no kernel image') en GPUs más antiguas y optimiza la VRAM.
     batch_size = 4
@@ -209,7 +209,7 @@ def transcribe_and_diarize(file_path, hf_token, whisper_model, source_language_u
             
         progress(1.0, desc="¡Proceso finalizado!")
         print("[SUCCESS] Proceso de diarización y transcripción completado.")
-        return full_text, temp_txt_path, temp_srt_path
+        return full_text, temp_txt_path, temp_srt_path, gr.Tabs(selected=2)
         
     except Exception as e:
         error_msg = f"ERROR EN EL PROCESAMIENTO:\n\n{str(e)}\n\n"
@@ -223,7 +223,7 @@ def transcribe_and_diarize(file_path, hf_token, whisper_model, source_language_u
         except:
             pass
             
-        return error_msg, None, None
+        return error_msg, None, None, gr.update()
 
 # --- CSS Personalizado para una Estética Premium Oscura ---
 custom_css = """
@@ -312,65 +312,66 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue="indigo", secondary_hue="slat
         """
     )
     
-    with gr.Column(elem_classes="glass-panel"):
-        with gr.Row():
-            # Panel de configuraciones e inputs (Izquierda)
-            with gr.Column(scale=1):
-                gr.Markdown("### 🛠️ Configuración de Entrada")
+    with gr.Tabs() as main_tabs:
+        with gr.TabItem("🎬 1. Configuración y Video", id=1):
+            with gr.Column(elem_classes="glass-panel"):
+                gr.Markdown("### 🛠️ Archivo Multimedia y Configuración")
                 
-                audio_video_input = gr.File(
-                    label="Subir Archivo de Audio o Video",
-                    file_types=["audio", "video"],
-                    type="filepath"
+                audio_video_input = gr.Video(
+                    label="Reproductor Integrado (Sube o arrastra tu video/audio aquí)",
+                    sources=["upload"],
+                    interactive=True
                 )
                 
-                hf_token_input = gr.Textbox(
-                    label="Token de Hugging Face (pyannote)",
-                    placeholder="hf_...",
-                    type="password",
-                    value=os.getenv("HF_TOKEN", ""),
-                    info="Requerido para la diarización. Asegúrate de haber aceptado la licencia de Pyannote 3.1 en Hugging Face."
-                )
-                
-                whisper_model_input = gr.Dropdown(
-                    label="Modelo de Transcripción Whisper",
-                    choices=["small", "medium", "turbo"],
-                    value="turbo",
-                    info="El modelo 'large' está deshabilitado para evitar errores de memoria (OOM) en 8GB de VRAM."
-                )
-                
-                source_language_input = gr.Dropdown(
-                    label="Idioma del Audio (Opcional)",
-                    choices=["Automático", "Español", "Inglés", "Francés", "Alemán", "Italiano", "Portugués"],
-                    value="Automático",
-                    info="Seleccionar el idioma manualmente salta el paso de auto-detección, ahorrando tiempo y mejorando la precisión."
-                )
-                
-                with gr.Row():
-                    min_speakers_input = gr.Number(
-                        label="Min Hablantes (Opcional)", 
-                        precision=0, 
-                        minimum=0,
-                        value=0
-                    )
-                    max_speakers_input = gr.Number(
-                        label="Max Hablantes (Opcional)", 
-                        precision=0, 
-                        minimum=0,
-                        value=0
+                with gr.Accordion("⚙️ Parámetros del Motor de IA", open=True):
+                    hf_token_input = gr.Textbox(
+                        label="Token de Hugging Face (pyannote)",
+                        placeholder="hf_...",
+                        type="password",
+                        value=os.getenv("HF_TOKEN", ""),
+                        info="Requerido para la diarización. Asegúrate de haber aceptado la licencia de Pyannote 3.1 en Hugging Face."
                     )
                     
-                traducir_es_input = gr.Checkbox(
-                    label="Traducir transcripción al Español (Offline)",
-                    value=False,
-                    info="Si el audio está en otro idioma, la IA lo traducirá automáticamente al español al finalizar."
-                )
-                
+                    with gr.Row():
+                        whisper_model_input = gr.Dropdown(
+                            label="Modelo de Transcripción Whisper",
+                            choices=["small", "medium", "turbo"],
+                            value="turbo",
+                            info="El modelo 'large' está deshabilitado para evitar errores (OOM)."
+                        )
+                        
+                        source_language_input = gr.Dropdown(
+                            label="Idioma del Audio (Opcional)",
+                            choices=["Automático", "Español", "Inglés", "Francés", "Alemán", "Italiano", "Portugués"],
+                            value="Automático",
+                            info="Seleccionar el idioma manualmente salta el paso de auto-detección."
+                        )
+                    
+                    with gr.Row():
+                        min_speakers_input = gr.Number(
+                            label="Min Hablantes (Opcional)", 
+                            precision=0, 
+                            minimum=0,
+                            value=0
+                        )
+                        max_speakers_input = gr.Number(
+                            label="Max Hablantes (Opcional)", 
+                            precision=0, 
+                            minimum=0,
+                            value=0
+                        )
+                        
+                    traducir_es_input = gr.Checkbox(
+                        label="Traducir transcripción al Español (Offline)",
+                        value=False,
+                        info="Si el audio está en otro idioma, la IA lo traducirá automáticamente al español."
+                    )
+                    
                 submit_btn = gr.Button("Comenzar Transcripción", elem_classes="action-btn")
-            
-            # Panel de resultados y descargas (Derecha)
-            with gr.Column(scale=1):
-                gr.Markdown("### 📝 Resultados de la Diarización")
+        
+        with gr.TabItem("📝 2. Resultados", id=2):
+            with gr.Column(elem_classes="glass-panel"):
+                gr.Markdown("### 📝 Resultados de la Transcripción y Diarización")
                 
                 output_textbox = gr.Textbox(
                     label="Transcripción por Segmentos",
@@ -405,7 +406,8 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue="indigo", secondary_hue="slat
         outputs=[
             output_textbox,
             txt_download_btn,
-            srt_download_btn
+            srt_download_btn,
+            main_tabs
         ]
     )
 
