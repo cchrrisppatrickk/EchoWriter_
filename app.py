@@ -209,7 +209,7 @@ def transcribe_and_diarize(file_path, hf_token, whisper_model, source_language_u
             
         progress(1.0, desc="¡Proceso finalizado!")
         print("[SUCCESS] Proceso de diarización y transcripción completado.")
-        return full_text, temp_txt_path, temp_srt_path, gr.Tabs(selected=2), file_path
+        return full_text, temp_txt_path, temp_srt_path, gr.Tabs(selected=2), (file_path, temp_srt_path)
         
     except Exception as e:
         error_msg = f"ERROR EN EL PROCESAMIENTO:\n\n{str(e)}\n\n"
