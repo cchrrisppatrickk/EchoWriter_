@@ -11,7 +11,7 @@
 
 ## ⚡ 2. Optimizaciones de Rendimiento
 
-- [ ] **Selección Manual de Idioma:** Agregar un menú desplegable para elegir el idioma y ahorrar el tiempo de autodetección, ganando también precisión.
+- [x] **Selección Manual de Idioma:** Agregar un menú desplegable para elegir el idioma y ahorrar el tiempo de autodetección, ganando también precisión.
 - [ ] **Selector de Precisión (Hardware):** Selector UI para escoger entre `float16` y `int8` dependiendo de los recursos del PC o tamaño del audio.
 - [ ] **Control de Alucinaciones (Glosario):** Casilla de texto opcional para pasar un "Glosario" inicial a la IA con términos especializados.
 

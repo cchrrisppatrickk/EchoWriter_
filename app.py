@@ -22,7 +22,7 @@ def format_timestamp(seconds: float) -> str:
     milliseconds = min(999, max(0, milliseconds))
     return f"{hours:02d}:{minutes:02d}:{secs:02d},{milliseconds:03d}"
 
-def transcribe_and_diarize(file_path, hf_token, whisper_model, min_speakers, max_speakers, traducir_a_es, progress=gr.Progress(track_tqdm=True)):
+def transcribe_and_diarize(file_path, hf_token, whisper_model, source_language_ui, min_speakers, max_speakers, traducir_a_es, progress=gr.Progress(track_tqdm=True)):
     # Validaciones iniciales
     if not file_path:
         return "Error: Por favor, carga un archivo de audio o video.", None, None
@@ -63,7 +63,18 @@ def transcribe_and_diarize(file_path, hf_token, whisper_model, min_speakers, max
         
         progress(0.3, desc="Ejecutando transcripción de audio...")
         print("[PROCESS] Iniciando transcripción...")
-        raw_result = model.transcribe(audio, batch_size=batch_size)
+        
+        # Mapeo de idioma de la UI a código Whisper
+        lang_map = {
+            "Español": "es", "Inglés": "en", "Francés": "fr", 
+            "Alemán": "de", "Italiano": "it", "Portugués": "pt"
+        }
+        language_code = lang_map.get(source_language_ui, None)
+        
+        if language_code:
+            raw_result = model.transcribe(audio, batch_size=batch_size, language=language_code)
+        else:
+            raw_result = model.transcribe(audio, batch_size=batch_size)
         
         # Guardar idioma detectado para cargar el modelo de alineación correspondiente
         detected_language = raw_result.get("language", "es")
@@ -328,6 +339,13 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue="indigo", secondary_hue="slat
                     info="El modelo 'large' está deshabilitado para evitar errores de memoria (OOM) en 8GB de VRAM."
                 )
                 
+                source_language_input = gr.Dropdown(
+                    label="Idioma del Audio (Opcional)",
+                    choices=["Automático", "Español", "Inglés", "Francés", "Alemán", "Italiano", "Portugués"],
+                    value="Automático",
+                    info="Seleccionar el idioma manualmente salta el paso de auto-detección, ahorrando tiempo y mejorando la precisión."
+                )
+                
                 with gr.Row():
                     min_speakers_input = gr.Number(
                         label="Min Hablantes (Opcional)", 
@@ -379,6 +397,7 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue="indigo", secondary_hue="slat
             audio_video_input,
             hf_token_input,
             whisper_model_input,
+            source_language_input,
             min_speakers_input,
             max_speakers_input,
             traducir_es_input
