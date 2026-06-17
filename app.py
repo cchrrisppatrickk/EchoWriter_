@@ -227,7 +227,7 @@ def transcribe_and_diarize(file_path, hf_token, whisper_model, source_language_u
         error_df = pd.DataFrame([{"Hablante": "ERROR", "Inicio (s)": 0.0, "Fin (s)": 0.0, "Texto": error_msg}])
         return error_df, None, None, gr.update(), None
 
-def update_downloads_from_df(df):
+def update_downloads_from_df(df, clean_export=False):
     if df is None or df.empty:
         return None, None
     
@@ -244,11 +244,19 @@ def update_downloads_from_df(df):
             start, end = 0.0, 0.0
         text = str(row.get("Texto", "")).strip()
         
-        txt_lines.append(f"[{speaker}] ({start:.2f}s - {end:.2f}s): {text}")
-        
-        srt_lines.append(f"{srt_counter}")
-        srt_lines.append(f"{format_timestamp(start)} --> {format_timestamp(end)}")
-        srt_lines.append(f"[{speaker}]: {text}\n")
+        if clean_export:
+            txt_lines.append(f"({start:.2f}s - {end:.2f}s): {text}")
+            
+            srt_lines.append(f"{srt_counter}")
+            srt_lines.append(f"{format_timestamp(start)} --> {format_timestamp(end)}")
+            srt_lines.append(f"{text}\n")
+        else:
+            txt_lines.append(f"[{speaker}] ({start:.2f}s - {end:.2f}s): {text}")
+            
+            srt_lines.append(f"{srt_counter}")
+            srt_lines.append(f"{format_timestamp(start)} --> {format_timestamp(end)}")
+            srt_lines.append(f"[{speaker}]: {text}\n")
+            
         srt_counter += 1
         
     full_text = "\n".join(txt_lines)
@@ -432,6 +440,12 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue="indigo", secondary_hue="slat
                             wrap=True
                         )
                         
+                        clean_export_input = gr.Checkbox(
+                            label="🧹 Modo Subtítulos Limpios (Ocultar nombres de hablantes en descarga)",
+                            value=False,
+                            info="Útil para exportar a Premiere, YouTube o DaVinci Resolve sin etiquetas molestas."
+                        )
+                        
                         apply_edits_btn = gr.Button("💾 Aplicar Ediciones y Preparar Descargas", elem_classes="action-btn")
                         
                         with gr.Row():
@@ -467,7 +481,7 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue="indigo", secondary_hue="slat
     
     apply_edits_btn.click(
         fn=update_downloads_from_df,
-        inputs=[output_dataframe],
+        inputs=[output_dataframe, clean_export_input],
         outputs=[txt_download_btn, srt_download_btn]
     )
 
