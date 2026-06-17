@@ -6,3 +6,4 @@ argostranslate
 transformers>=4.40.0
 setuptools
 huggingface-hub<1.0.0
+python-docx

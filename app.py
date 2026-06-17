@@ -9,6 +9,8 @@ from dotenv import load_dotenv, set_key
 import argostranslate.package
 import argostranslate.translate
 import pandas as pd
+from docx import Document
+from docx.shared import RGBColor, Pt
 
 env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
 load_dotenv(env_path)
@@ -196,21 +198,12 @@ def transcribe_and_diarize(file_path, hf_token, whisper_model, source_language_u
         if df_data.empty:
             df_data = pd.DataFrame([{"Hablante": "Sistema", "Inicio (s)": 0.0, "Fin (s)": 0.0, "Texto": "No se detectó contenido de voz en el archivo."}])
             
-        # Guardar en archivos físicos temporales para descarga
-        temp_dir = tempfile.gettempdir()
-        temp_txt_path = os.path.join(temp_dir, "transcripcion_diarizada.txt")
-        temp_srt_path = os.path.join(temp_dir, "transcripcion_diarizada.srt")
-        
-        with open(temp_txt_path, "w", encoding="utf-8") as f:
-            for row in df_rows:
-                f.write(f"[{row['Hablante']}] ({row['Inicio (s)']}s - {row['Fin (s)']}s): {row['Texto']}\n")
-            
-        with open(temp_srt_path, "w", encoding="utf-8") as f:
-            f.write(full_srt)
+        # Generar los archivos temporales de descarga iniciales
+        temp_txt_path, temp_srt_path, temp_docx_path = update_downloads_from_df(df_data, clean_export=False)
             
         progress(1.0, desc="¡Proceso finalizado!")
         print("[SUCCESS] Proceso de diarización y transcripción completado.")
-        return df_data, temp_txt_path, temp_srt_path, gr.Tabs(selected=2), (file_path, temp_srt_path)
+        return df_data, temp_txt_path, temp_srt_path, temp_docx_path, gr.Tabs(selected=2), (file_path, temp_srt_path)
         
     except Exception as e:
         error_msg = f"ERROR EN EL PROCESAMIENTO:\n\n{str(e)}\n\n"
@@ -225,15 +218,30 @@ def transcribe_and_diarize(file_path, hf_token, whisper_model, source_language_u
             pass
             
         error_df = pd.DataFrame([{"Hablante": "ERROR", "Inicio (s)": 0.0, "Fin (s)": 0.0, "Texto": error_msg}])
-        return error_df, None, None, gr.update(), None
+        return error_df, None, None, None, gr.update(), None
+
+def get_speaker_color(speaker_name):
+    hash_val = sum(ord(c) for c in speaker_name)
+    colors = [
+        RGBColor(0, 114, 178), # Blue
+        RGBColor(213, 94, 0),  # Vermillion
+        RGBColor(0, 158, 115), # Bluish Green
+        RGBColor(204, 121, 167), # Reddish Purple
+        RGBColor(230, 159, 0), # Orange
+        RGBColor(86, 180, 233), # Sky Blue
+    ]
+    return colors[hash_val % len(colors)]
 
 def update_downloads_from_df(df, clean_export=False):
     if df is None or df.empty:
-        return None, None
+        return None, None, None
     
     srt_lines = []
     txt_lines = []
     srt_counter = 1
+    
+    doc = Document()
+    doc.add_heading('Guion de Transcripción', 0)
     
     for _, row in df.iterrows():
         speaker = str(row.get("Hablante", "SPEAKER_UNKNOWN"))
@@ -243,6 +251,13 @@ def update_downloads_from_df(df, clean_export=False):
         except:
             start, end = 0.0, 0.0
         text = str(row.get("Texto", "")).strip()
+        
+        # DOCX Logic
+        p = doc.add_paragraph()
+        speaker_run = p.add_run(f"[{speaker}]")
+        speaker_run.bold = True
+        speaker_run.font.color.rgb = get_speaker_color(speaker)
+        p.add_run(f"\n({start:.2f}s - {end:.2f}s) {text}")
         
         if clean_export:
             txt_lines.append(f"({start:.2f}s - {end:.2f}s): {text}")
@@ -265,6 +280,7 @@ def update_downloads_from_df(df, clean_export=False):
     temp_dir = tempfile.gettempdir()
     temp_txt_path = os.path.join(temp_dir, "transcripcion_diarizada_editada.txt")
     temp_srt_path = os.path.join(temp_dir, "transcripcion_diarizada_editada.srt")
+    temp_docx_path = os.path.join(temp_dir, "transcripcion_guion.docx")
     
     with open(temp_txt_path, "w", encoding="utf-8") as f:
         f.write(full_text)
@@ -272,7 +288,9 @@ def update_downloads_from_df(df, clean_export=False):
     with open(temp_srt_path, "w", encoding="utf-8") as f:
         f.write(full_srt)
         
-    return temp_txt_path, temp_srt_path
+    doc.save(temp_docx_path)
+        
+    return temp_txt_path, temp_srt_path, temp_docx_path
 
 # --- CSS Personalizado para una Estética Premium Oscura ---
 custom_css = """
@@ -457,6 +475,10 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue="indigo", secondary_hue="slat
                                 label="Descargar Subtítulos (.srt)",
                                 interactive=False
                             )
+                            docx_download_btn = gr.File(
+                                label="📄 Descargar Guion Profesional (.docx)",
+                                interactive=False
+                            )
 
     # Vinculación de eventos
     submit_btn.click(
@@ -474,6 +496,7 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue="indigo", secondary_hue="slat
             output_dataframe,
             txt_download_btn,
             srt_download_btn,
+            docx_download_btn,
             main_tabs,
             playback_video
         ]
@@ -482,7 +505,7 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue="indigo", secondary_hue="slat
     apply_edits_btn.click(
         fn=update_downloads_from_df,
         inputs=[output_dataframe, clean_export_input],
-        outputs=[txt_download_btn, srt_download_btn]
+        outputs=[txt_download_btn, srt_download_btn, docx_download_btn]
     )
 
 # Lanzar aplicación localmente
