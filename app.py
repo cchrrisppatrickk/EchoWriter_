@@ -8,6 +8,7 @@ from whisperx.diarize import DiarizationPipeline
 from dotenv import load_dotenv, set_key
 import argostranslate.package
 import argostranslate.translate
+import pandas as pd
 
 env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
 load_dotenv(env_path)
@@ -170,7 +171,7 @@ def transcribe_and_diarize(file_path, hf_token, whisper_model, source_language_u
 
         # --- PASO 5: Generar y formatear salidas ---
         progress(0.99, desc="Formateando subtítulos finales...")
-        text_lines = []
+        df_rows = []
         srt_lines = []
         srt_counter = 1
         
@@ -180,9 +181,8 @@ def transcribe_and_diarize(file_path, hf_token, whisper_model, source_language_u
             start = segment.get("start", 0.0)
             end = segment.get("end", 0.0)
             
-            # Formato de visualización de texto en la caja de la UI
-            display_line = f"[{speaker}] ({start:.2f}s - {end:.2f}s): {text}"
-            text_lines.append(display_line)
+            # Fila para el Dataframe
+            df_rows.append({"Hablante": speaker, "Inicio (s)": round(start, 2), "Fin (s)": round(end, 2), "Texto": text})
             
             # Formato de archivo SRT
             srt_lines.append(f"{srt_counter}")
@@ -190,11 +190,11 @@ def transcribe_and_diarize(file_path, hf_token, whisper_model, source_language_u
             srt_lines.append(f"[{speaker}]: {text}\n")
             srt_counter += 1
             
-        full_text = "\n".join(text_lines)
+        df_data = pd.DataFrame(df_rows)
         full_srt = "\n".join(srt_lines)
         
-        if not full_text:
-            full_text = "Proceso terminado, pero no se detectó contenido de voz en el archivo."
+        if df_data.empty:
+            df_data = pd.DataFrame([{"Hablante": "Sistema", "Inicio (s)": 0.0, "Fin (s)": 0.0, "Texto": "No se detectó contenido de voz en el archivo."}])
             
         # Guardar en archivos físicos temporales para descarga
         temp_dir = tempfile.gettempdir()
@@ -202,14 +202,15 @@ def transcribe_and_diarize(file_path, hf_token, whisper_model, source_language_u
         temp_srt_path = os.path.join(temp_dir, "transcripcion_diarizada.srt")
         
         with open(temp_txt_path, "w", encoding="utf-8") as f:
-            f.write(full_text)
+            for row in df_rows:
+                f.write(f"[{row['Hablante']}] ({row['Inicio (s)']}s - {row['Fin (s)']}s): {row['Texto']}\n")
             
         with open(temp_srt_path, "w", encoding="utf-8") as f:
             f.write(full_srt)
             
         progress(1.0, desc="¡Proceso finalizado!")
         print("[SUCCESS] Proceso de diarización y transcripción completado.")
-        return full_text, temp_txt_path, temp_srt_path, gr.Tabs(selected=2), (file_path, temp_srt_path)
+        return df_data, temp_txt_path, temp_srt_path, gr.Tabs(selected=2), (file_path, temp_srt_path)
         
     except Exception as e:
         error_msg = f"ERROR EN EL PROCESAMIENTO:\n\n{str(e)}\n\n"
@@ -223,7 +224,47 @@ def transcribe_and_diarize(file_path, hf_token, whisper_model, source_language_u
         except:
             pass
             
-        return error_msg, None, None, gr.update(), None
+        error_df = pd.DataFrame([{"Hablante": "ERROR", "Inicio (s)": 0.0, "Fin (s)": 0.0, "Texto": error_msg}])
+        return error_df, None, None, gr.update(), None
+
+def update_downloads_from_df(df):
+    if df is None or df.empty:
+        return None, None
+    
+    srt_lines = []
+    txt_lines = []
+    srt_counter = 1
+    
+    for _, row in df.iterrows():
+        speaker = str(row.get("Hablante", "SPEAKER_UNKNOWN"))
+        try:
+            start = float(row.get("Inicio (s)", 0.0))
+            end = float(row.get("Fin (s)", 0.0))
+        except:
+            start, end = 0.0, 0.0
+        text = str(row.get("Texto", "")).strip()
+        
+        txt_lines.append(f"[{speaker}] ({start:.2f}s - {end:.2f}s): {text}")
+        
+        srt_lines.append(f"{srt_counter}")
+        srt_lines.append(f"{format_timestamp(start)} --> {format_timestamp(end)}")
+        srt_lines.append(f"[{speaker}]: {text}\n")
+        srt_counter += 1
+        
+    full_text = "\n".join(txt_lines)
+    full_srt = "\n".join(srt_lines)
+    
+    temp_dir = tempfile.gettempdir()
+    temp_txt_path = os.path.join(temp_dir, "transcripcion_diarizada_editada.txt")
+    temp_srt_path = os.path.join(temp_dir, "transcripcion_diarizada_editada.srt")
+    
+    with open(temp_txt_path, "w", encoding="utf-8") as f:
+        f.write(full_text)
+        
+    with open(temp_srt_path, "w", encoding="utf-8") as f:
+        f.write(full_srt)
+        
+    return temp_txt_path, temp_srt_path
 
 # --- CSS Personalizado para una Estética Premium Oscura ---
 custom_css = """
@@ -383,13 +424,15 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue="indigo", secondary_hue="slat
                         
                     # Columna Derecha: Texto
                     with gr.Column(scale=1):
-                        output_textbox = gr.Textbox(
-                            label="Transcripción Editable por Segmentos",
-                            placeholder="Los resultados se mostrarán aquí. Reproduce el video a la izquierda para corregir errores.",
-                            lines=12,
-                            max_lines=25,
-                            show_copy_button=True
+                        output_dataframe = gr.Dataframe(
+                            headers=["Hablante", "Inicio (s)", "Fin (s)", "Texto"],
+                            datatype=["str", "number", "number", "str"],
+                            label="Transcripción Editable (Doble clic en una celda para editar)",
+                            interactive=True,
+                            wrap=True
                         )
+                        
+                        apply_edits_btn = gr.Button("💾 Aplicar Ediciones y Preparar Descargas", elem_classes="action-btn")
                         
                         with gr.Row():
                             txt_download_btn = gr.File(
@@ -414,12 +457,18 @@ with gr.Blocks(theme=gr.themes.Default(primary_hue="indigo", secondary_hue="slat
             traducir_es_input
         ],
         outputs=[
-            output_textbox,
+            output_dataframe,
             txt_download_btn,
             srt_download_btn,
             main_tabs,
             playback_video
         ]
+    )
+    
+    apply_edits_btn.click(
+        fn=update_downloads_from_df,
+        inputs=[output_dataframe],
+        outputs=[txt_download_btn, srt_download_btn]
     )
 
 # Lanzar aplicación localmente
