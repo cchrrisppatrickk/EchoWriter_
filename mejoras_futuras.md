@@ -1,31 +1,29 @@
 # 🚀 Mejoras Futuras para EchoWriter AI
 
-¡Felicidades por tener tu aplicación de IA de transcripción y diarización funcionando al 100% de manera local! Aquí tienes una lista de ideas y funcionalidades que podrías añadir en el futuro para llevar la aplicación de un prototipo funcional a una herramienta de nivel profesional y comercial.
+¡EchoWriter AI cuenta ahora con un motor de transcripción SOTA, caché inteligente en VRAM y traducción de alto rendimiento con Meta NLLB-200! Aquí tienes el seguimiento del progreso y las próximas ideas de evolución.
 
 ## 🌟 1. Mejoras de la Interfaz de Usuario (UI) y Experiencia
 
-- [x] **Guardar el Token de Hugging Face automáticamente**: Modificar `app.py` para leer un archivo `.env` invisible que guarde el token.
-- [ ] **Procesamiento por Lotes (Batch Processing):** Permitir subir múltiples audios/videos a la vez, procesarlos secuencialmente y generar un ZIP final.
-- [x] **Reproductor de Audio/Video Integrado:** Mostrar el archivo multimedia subido junto a la caja de transcripción.
+- [x] **Guardar el Token de Hugging Face automáticamente**: Lee y persiste el token en `.env`.
+- [x] **Reproductor de Audio/Video Integrado:** Vista multimedia sincronizada con la tabla de edición.
+- [x] **Control de Memoria VRAM en Tiempo Real:** Barra visual en la cabecera con botón de 1 clic para liberar la memoria de la tarjeta gráfica (`🧹 Liberar VRAM`).
+- [x] **Procesamiento por Lotes (Batch Processing):** Procesamiento de múltiples videos/audios mediante cola interactiva o escaneo de carpetas en Windows, modo de subtítulos limpios, nombrado dinámico y descarga de todo en un único archivo ZIP.
 
+## ⚡ 2. Optimizaciones de Rendimiento y Motor de IA
 
-## ⚡ 2. Optimizaciones de Rendimiento
-
-- [x] **Selección Manual de Idioma:** Agregar un menú desplegable para elegir el idioma y ahorrar el tiempo de autodetección, ganando también precisión.
-- [ ] **Selector de Precisión (Hardware):** Selector UI para escoger entre `float16` y `int8` dependiendo de los recursos del PC o tamaño del audio.
-- [ ] **Control de Alucinaciones (Glosario):** Casilla de texto opcional para pasar un "Glosario" inicial a la IA con términos especializados.
-
-## 🛠️ 3. Nuevas Funcionalidades del Motor
-
-- [x] **Traducción Automática Integrada:** Habilitar el task de traducción ("translate") de Whisper para que transcripciones en otros idiomas salgan automáticamente en inglés.
-- [ ] **Nuevos Formatos de Exportación:** Añadir descargas en formato `.vtt`, `.docx` o `PDF` con formato pulcro y distinguido por colores.
+- [x] **Selección Manual de Idioma:** Ahorra tiempo de autodetección y previene saltos de idioma.
+- [x] **Selector de Precisión de Hardware (`compute_type`):** Selector para alternar entre `float16` (máxima velocidad en GPU RTX) e `int8` (mínimo consumo de VRAM).
+- [x] **Desbloqueo de Whisper Large V3:** Disponible junto a `turbo`, `medium` y `small`.
+- [x] **Memoria Caché del Modelo (Singleton):** El modelo se mantiene caliente en VRAM tras la primera transcripción; audios consecutivos se transcriben en menos de 1 segundo.
+- [x] **Traducción Neuronal Superior (Meta NLLB-200 vía CTranslate2):** Reemplazo de Argos por NLLB-200 INT8 con 200 idiomas directos a español sin descargas en runtime.
+- [x] **Compatibilidad con Pyannote Diarization SOTA:** Selector entre `community-1` y `3.1`.
 - [ ] **Ajustes Avanzados de Silencio (VAD):** Exponer en la UI los controles de sensibilidad de Silero VAD para evitar que corte audio durante ruidos fuertes.
-- [ ] **Edición en Caliente:** Permitir editar la transcripción final en la interfaz web de Gradio antes de descargar el archivo.
+- [ ] **Control de Alucinaciones (Glosario / Prompt Inicial):** Casilla de texto opcional para pasar un "Prompt" inicial a Whisper con términos especializados.
 
-## 🎨 4. Mejoras Avanzadas de Formato y Transcripción
+## 🎨 3. Formato, Edición y Salida Profesional
 
-- [ ] **Colores Dinámicos para Hablantes:** Usar HTML/Markdown enriquecido en la caja de salida para darle un color distintivo y consistente a cada `SPEAKER_XX` en toda la transcripción.
-- [ ] **Renombrado Interactivo de Hablantes:** Una interfaz donde si la app detecta "SPEAKER_00" y "SPEAKER_01", puedas escribir sus nombres reales ("Juan", "Entrevistador") y reemplazarlos en todo el documento con un clic antes de exportarlo.
-- [ ] **Fusión Inteligente de Diálogos (Smart Merge):** A veces la IA corta la frase de un hablante en dos líneas si este respira profundo. Un filtro que una intervenciones consecutivas de la misma persona haría la lectura mucho más fluida.
-- [ ] **Exportación Profesional a Guion:** Permitir descargar la transcripción en formato `.pdf` o `.docx` con un formato de guion de entrevista profesional (nombres en negrita, colores, márgenes correctos), listo para entregar a clientes.
-- [ ] **Generación Automática de Resumen (LLM):** Integrar una opción que, al terminar la transcripción, la envíe a un modelo de lenguaje ligero para que extraiga los "puntos clave" y un "resumen ejecutivo" de la reunión.
+- [x] **Edición en Caliente:** Tabla interactiva en vivo antes de descargar archivos.
+- [x] **Renombrado Interactivo de Hablantes:** Herramienta para renombrar masivamente etiquetas (`SPEAKER_00` -> `Carlos`) en todo el guion y descargas con 1 clic.
+- [x] **Exportación a Guion Profesional (`.docx`):** Distinción visual de hablantes con colores y marcas de tiempo.
+- [ ] **Fusión Inteligente de Diálogos (Smart Merge):** Filtro que una intervenciones consecutivas de la misma persona si la pausa es menor a 1.5s.
+- [ ] **Generación Automática de Resumen (LLM):** Integración con modelo de lenguaje ligero (vía Ollama o GGUF local) para extraer "puntos clave" y "resumen ejecutivo".

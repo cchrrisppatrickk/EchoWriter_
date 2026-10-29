@@ -26,12 +26,17 @@ desktop.ini
 *.ogg
 *.srt
 *.vtt
+*.rar
+*.zip
 
 # Archivos temporales generados por tempfile y la app
 transcripcion_diarizada.txt
 transcripcion_diarizada.srt
 temp/
 tmp/
+
+# Modelos descargados
+models/
 
 # Archivos de proyecto
 .vscode/
